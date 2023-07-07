@@ -48,11 +48,17 @@ public class MoleculeManager : MonoBehaviour
         List<elementOfMolecule> segment = new List<elementOfMolecule>();
         segment.Add(originPoint);
         elementOfMolecule currentPoint = originPoint;
+        if (currentPoint.numberOfConnections==1){
+            segment.Add(currentPoint.pointsTo[0].GetComponent<elementOfMolecule>());
+            currentPoint = currentPoint.pointsTo[0].GetComponent<elementOfMolecule>();
+        }
+        else if (currentPoint.numberOfConnections==0){
+            return segment;
+        }
         while (true){
-            if ((currentPoint.numberOfConnections==1 || currentPoint.numberOfConnections==0) && currentPoint!=originPoint){
+            if (currentPoint.numberOfConnections==1){
                 segment.Add(currentPoint.pointsTo[0].GetComponent<elementOfMolecule>());
                 currentPoint = currentPoint.pointsTo[0].GetComponent<elementOfMolecule>();
-                continue;
             }
             else{
                 return segment;
@@ -80,33 +86,63 @@ public class MoleculeManager : MonoBehaviour
                         }
                     }
                     sp3.Add(segments[0][0].element);
+                    break;
                 }
                 if (segments[0][i].element.GetComponent<AtomProperties>().atomType=="C(sp3)"){
-                    foreach (GameObject bond in segments[0][i].element.GetComponent<AtomProperties>().bonds){
-                        GameObject neighbouringAtom = bond.GetComponent<SpThreeBondOccupation>().connectedTo;
-                        if (neighbouringAtom == segments[0][i].element){
-                            continue;
-                        }
-                        else if (neighbouringAtom==null){
-                            StartCoroutine(unableToNameMolecule());
+                    sp3.Add(segments[0][i].element);
+                    for (int j=0;j<4;j++){
+                        GameObject bondConnection = segments[0][i].element.GetComponent<AtomProperties>().bonds[j].GetComponent<SpThreeBondOccupation>().connectedTo;
+                        if (bondConnection==null){
+                            unableToNameMolecule();
                             return;
                         }
-                        if (neighbouringAtom.GetComponent<AtomProperties>().atomType=="H"){
-                            h.Add(neighbouringAtom);
-                        }
-                        else if (neighbouringAtom.GetComponent<AtomProperties>().atomType=="C(sp3)"){
-                            Debug.Log("yup");
-                            sp3.Add(neighbouringAtom);
-                        }
-                        else if (neighbouringAtom.GetComponent<AtomProperties>().atomType=="C(sp2)"){
-                            sp2.Add(neighbouringAtom);
-                        }
-                        else if (neighbouringAtom.GetComponent<AtomProperties>().atomType=="C(sp)"){
-                            sp.Add(neighbouringAtom);
+                        else if (bondConnection.GetComponent<AtomProperties>().atomType=="H"){
+                            h.Add(bondConnection);
                         }
                     }
                 }
+                else if (segments[0][i].element.GetComponent<AtomProperties>().atomType=="C(sp2)"){
+                    sp2.Add(segments[0][i].element);
+                    for (int j=0;j<3;j++){
+                        if (j==0){
+                            GameObject doubleBondConnection = segments[0][i].element.GetComponent<AtomProperties>().bonds[j].GetComponent<SpTwoBondOccupation>().connectedTo;
+                            if (doubleBondConnection==null){
+                                unableToNameMolecule();
+                                return;
+                            }
+                            continue;    
+                        }
+                        GameObject singleBondConnection = segments[0][i].element.GetComponent<AtomProperties>().bonds[j].GetComponent<SpThreeBondOccupation>().connectedTo;
+                        if (singleBondConnection==null){
+                            unableToNameMolecule();
+                            return;
+                        }
+                        else if (singleBondConnection.GetComponent<AtomProperties>().atomType=="H"){
+                            h.Add(singleBondConnection);
+                        }
+                    }
+                }
+                else if (segments[0][i].element.GetComponent<AtomProperties>().atomType=="C(sp)"){
+                    sp.Add(segments[0][i].element);
+                    GameObject tripleBondConnection = segments[0][i].element.GetComponent<AtomProperties>().bonds[0].GetComponent<SpBondOccupation>().connectedTo;
+                    GameObject singleBondConnection = segments[0][i].element.GetComponent<AtomProperties>().bonds[0].GetComponent<SpThreeBondOccupation>().connectedTo;
+                    if (tripleBondConnection==null || singleBondConnection==null){
+                        unableToNameMolecule();
+                        return;
+                    }
+                    else if(tripleBondConnection.GetComponent<AtomProperties>().atomType=="H" && singleBondConnection.GetComponent<AtomProperties>().atomType=="H"){
+                        h.Add(tripleBondConnection);
+                        h.Add(singleBondConnection);
+                    }
+                    else if(tripleBondConnection.GetComponent<AtomProperties>().atomType=="H"){
+                        h.Add(tripleBondConnection);
+                    }
+                    else if(singleBondConnection.GetComponent<AtomProperties>().atomType=="H"){
+                        h.Add(singleBondConnection);
+                    }
+                }
             }
+            Debug.Log(segments[0].Count);
             //Naming the molecule;
             if (sp2.Count==0 && sp.Count==0){
                 nameOfMolecule.text = organicPrefixes[sp3.Count-1]+organicSuffixes[0];
